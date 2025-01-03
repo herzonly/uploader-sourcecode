@@ -4,6 +4,7 @@ const { Octokit } = require("@octokit/rest");
 const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
+const os = require('os')
 
 const app = express();
 const PORT = 3000;
@@ -23,12 +24,60 @@ app.get("/", (req, res) => {
 });
 
 // Endpoint untuk mengunggah file
+  app.get("/files/count", async (req, res) => {
+    try {
+      const response = await octokit.repos.getContent({
+        owner,
+        repo,
+        path: "files",
+        ref: branch
+      });
+
+      const fileCount = Array.isArray(response.data) ? response.data.length : 0;
+
+      res.json({
+        count: fileCount
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({
+        error: "Gagal mendapatkan jumlah file"
+      });
+    }
+  });
+
+  
+const startTime = Date.now(); // Server start time
+
+// Modify the stats endpoint to include uptime
+app.get("/stats", (req, res) => {
+  // Calculate uptime
+  const uptimeSeconds = Math.floor((Date.now() - startTime) / 1000);
+  const hours = Math.floor(uptimeSeconds / 3600);
+  const minutes = Math.floor((uptimeSeconds % 3600) / 60);
+  const seconds = uptimeSeconds % 60;
+  const uptimeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+
+  // Calculate memory
+  const totalMemory = Math.round(os.totalmem() / (1024 * 1024 * 1024)); // Convert to GB
+  const freeMemory = Math.round(os.freemem() / (1024 * 1024 * 1024));
+  const usedMemory = totalMemory - freeMemory;
+
+  res.json({
+    uptime: uptimeString,
+    memoryUsed: usedMemory,
+    memoryTotal: totalMemory
+  });
+});
+
+  
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
     const file = req.file;
+    const ext = path.extname(file.originalname);
     const hash = crypto.createHash("md5").update(file.originalname + Date.now()).digest("hex").slice(0, 5);
-    const fileName = `${hash}-${file.originalname}`;
-    const fileContent = fs.readFileSync(file.path, "utf8");
+    const fileName = `${hash}${ext}`;
+    const fileContent = fs.readFileSync(file.path);
 
     // Mengunggah file ke GitHub
     await octokit.repos.createOrUpdateFileContents({
@@ -43,15 +92,24 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     // Hapus file dari penyimpanan sementara
     fs.unlinkSync(file.path);
 
-    const baseUrl = "example.com"; // Ganti dengan domain Anda
-    res.send({ url: `https://${baseUrl}/file/${hash}` });
+    const baseUrl = "https://uploadfile.notmebot.us.kg";
+    const fileUrl = `${baseUrl}/file/${fileName}`;
+
+    // Kirim response dengan URL file
+    res.json({
+      success: true,
+      url: fileUrl
+    });
   } catch (error) {
     console.error(error);
-    res.status(500).send("Terjadi kesalahan saat mengunggah file.");
+    res.status(500).json({
+      success: false,
+      error: "Terjadi kesalahan saat mengunggah file."
+    })
   }
 });
 
-// Endpoint untuk mengakses file berdasarkan hash
+// Endpoint untuk mengakses file berdasarkan hash dan ekstensi
 app.get("/file/:filename", async (req, res) => {
   try {
     const { filename } = req.params;
@@ -62,7 +120,7 @@ app.get("/file/:filename", async (req, res) => {
       ref: branch,
     });
 
-    const file = files.data.find(f => f.name.startsWith(filename));
+    const file = files.data.find(f => f.name === filename); // Cocokkan nama file lengkap
     if (!file) return res.status(404).send("File tidak ditemukan.");
 
     const fileData = await octokit.repos.getContent({
@@ -72,9 +130,9 @@ app.get("/file/:filename", async (req, res) => {
       ref: branch,
     });
 
-    const content = Buffer.from(fileData.data.content, "base64").toString("utf8");
+    const content = Buffer.from(fileData.data.content, "base64");
     res.setHeader("Content-Disposition", `attachment; filename="${file.name}"`);
-    res.send(content);
+    res.send(content); // Kirim konten file
   } catch (error) {
     console.error(error);
     res.status(500).send("Terjadi kesalahan saat mengakses file.");

@@ -3,13 +3,429 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Uploader</title>
+  <title>Elegant File Uploader with Preview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(135deg, #6a11cb, #2575fc);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .container {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 40px 30px;
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+    h1 {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 20px;
+    }
+    p {
+      font-size: 0.9rem;
+      margin-bottom: 20px;
+    }
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    .file-input-container {
+      position: relative;
+      width: 100%;
+    }
+    input[type="file"] {
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.2);
+      color: #fff;
+      cursor: pointer;
+      text-align: center;
+      width: 100%;
+    }
+    .preview-container {
+      margin-top: 20px;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      display: none;
+    }
+    .preview-container.active {
+      display: block;
+    }
+    .preview-content {
+      max-width: 100%;
+      max-height: 200px;
+      margin: 0 auto;
+      display: block;
+    }
+    .preview-icon {
+      font-size: 48px;
+      margin: 20px 0;
+      color: #fff;
+    }
+    .file-name {
+      font-size: 0.9rem;
+      margin-top: 10px;
+      word-break: break-all;
+    }
+    button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 8px;
+      background: #6a11cb;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    button:hover {
+      background: #2575fc;
+    }
+
+    /* Loading Spinner */
+    .loading {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 999;
+      justify-content: center;
+      align-items: center;
+    }
+    .loading.active {
+      display: flex;
+    }
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #6a11cb;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    /* Popup Styles */
+    .popup {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: white;
+      padding: 20px;
+      border-radius: 12px;
+      width: 90%;
+      max-width: 500px;
+      z-index: 1000;
+      color: #333;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+    }
+    .popup.active {
+      display: block;
+      animation: bounceIn 0.6s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    .popup-url {
+      background: #f5f5f5;
+      padding: 15px;
+      border-radius: 8px;
+      margin: 15px 0;
+      word-break: break-all;
+      font-family: monospace;
+    }
+    .popup-preview {
+      margin: 15px 0;
+      text-align: center;
+    }
+    .popup-preview img {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 8px;
+    }
+    .close-popup {
+      margin-top: 15px;
+      background: #6a11cb;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @keyframes bounceIn {
+      0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+      50% { transform: translate(-50%, -50%) scale(1.05); opacity: 0.8; }
+      70% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.9; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+    }
+
+    footer {
+      margin-top: 20px;
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    footer a {
+      color: #fff;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    footer a:hover {
+      text-decoration: underline;
+    }
+    video.preview-content {
+      background: #000;
+    }
+    
+    .main-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 9000000000px;
+      width: 100%;
+      max-width: 400px;
+      margin: 0 auto;
+    }
+    
+    .stats-container {
+      background: rgba(255, 255, 255, 0.1);
+      position: fixed;
+      border-radius: 19px;
+      padding: 20px;
+      width: 98%;
+      margin-top: 560px;
+      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 15px;
+      text-align: center;
+    }
+
+    .stat-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.8);
+      margin-bottom: 5px;
+    }
+
+    .stat-value {
+      font-size: 1rem;
+      font-weight: 600;
+      color: white;                 }
+  </style>
 </head>
 <body>
-  <h1>Upload File</h1>
-  <form action="/upload" method="post" enctype="multipart/form-data">
-    <input type="file" name="file" required />
-    <button type="submit">Upload</button>
-  </form>
+  <div class="container">
+    <h1>Upload File</h1>
+    <p>Silakan unggah file Anda ke server. File akan disimpan dengan aman.</p>
+    <form id="uploadForm">
+      <div class="file-input-container">
+        <input type="file" name="file" id="fileInput" required />
+      </div>
+      <div class="preview-container" id="previewContainer">
+        <!-- Preview content will be inserted here -->
+      </div>
+      <button type="submit">Upload</button>
+    </form>
+    <footer>
+      Dibuat dengan ❤️ oleh <a href="https://example.com" target="_blank">Your Name</a>
+    </footer>
+  </div>
+
+  <!-- New Stats Container -->
+  <div class="stats-container">
+    <div class="stats-grid">
+      <div class="stat-item">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value" id="uptime">00:00:00</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Memory</div>
+        <div class="stat-value" id="memory">0GB / 0GB</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-label">Files Uploaded</div>
+        <div class="stat-value" id="fileCount">0 Files</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Spinner -->
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+  </div>
+
+  <!-- Result Popup -->
+  <div class="popup" id="popup">
+    <h3>File Berhasil Diunggah!</h3>
+    <div class="popup-url" id="fileUrl"></div>
+    <div class="popup-preview" id="popupPreview"></div>
+    <button class="close-popup" onclick="closePopup()">Tutup</button>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const previewContainer = document.getElementById('previewContainer');
+    const uploadForm = document.getElementById('uploadForm');
+    const loading = document.getElementById('loading');
+    const popup = document.getElementById('popup');
+    const fileUrl = document.getElementById('fileUrl');
+    const popupPreview = document.getElementById('popupPreview');
+
+    let currentPreview = null;
+
+    fileInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      previewContainer.innerHTML = '';
+      previewContainer.classList.add('active');
+
+      const fileNameElement = document.createElement('div');
+      fileNameElement.className = 'file-name';
+      fileNameElement.textContent = file.name;
+
+      if (file.type.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.className = 'preview-content';
+        img.file = file;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target.result;
+          currentPreview = e.target.result;
+        };
+        reader.readAsDataURL(file);
+
+        previewContainer.appendChild(img);
+      } else if (file.type.startsWith('video/')) {
+        const video = document.createElement('video');
+        video.className = 'preview-content';
+        video.controls = true;
+
+        const reader = new FileReader();
+        reader.onload = (e) => video.src = e.target.result;
+        reader.readAsDataURL(file);
+
+        previewContainer.appendChild(video);
+      } else {
+        const icon = document.createElement('i');
+        icon.className = 'preview-icon';
+
+        if (file.type.includes('pdf')) {
+          icon.className += ' fas fa-file-pdf';
+        } else if (file.type.includes('word') || file.type.includes('document')) {
+          icon.className += ' fas fa-file-word';
+        } else if (file.type.includes('spreadsheet') || file.type.includes('excel')) {
+          icon.className += ' fas fa-file-excel';
+        } else if (file.type.includes('presentation') || file.type.includes('powerpoint')) {
+          icon.className += ' fas fa-file-powerpoint';
+        } else if (file.type.includes('text')) {
+          icon.className += ' fas fa-file-alt';
+        } else {
+          icon.className += ' fas fa-file';
+        }
+
+        previewContainer.appendChild(icon);
+      }
+
+      previewContainer.appendChild(fileNameElement);
+    });
+
+    uploadForm.addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const formData = new FormData();
+      formData.append('file', fileInput.files[0]);
+
+      loading.classList.add('active');
+
+      try {
+        const response = await fetch('/upload', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) throw new Error('Upload failed');
+
+        const data = await response.json();
+
+        // Show popup with URL and preview
+        fileUrl.textContent = data.url;
+
+        if (currentPreview && fileInput.files[0].type.startsWith('image/')) {
+          popupPreview.innerHTML = `<img src="${currentPreview}" alt="Uploaded file preview">`;
+        } else {
+          popupPreview.innerHTML = `<i class="preview-icon fas fa-file"></i>`;
+        }
+
+        popup.classList.add('active');
+      } catch (error) {
+        alert('Terjadi kesalahan saat mengunggah file.');
+        console.error(error);
+      } finally {
+        loading.classList.remove('active');
+      }
+    });
+
+    function closePopup() {
+      popup.classList.remove('active');
+      // Optional: Clear the form
+      uploadForm.reset();
+      previewContainer.classList.remove('active');
+      previewContainer.innerHTML = '';
+      currentPreview = null;
+    }
+    async function updateStats() {
+  try {
+    // Get all stats from server
+    const response = await fetch('/stats');
+    const stats = await response.json();
+    
+    // Update uptime from server
+    document.getElementById('uptime').textContent = stats.uptime;
+    
+    // Update memory
+    document.getElementById('memory').textContent = `${stats.memoryUsed}GB / ${stats.memoryTotal}GB`;
+
+    // Get file count from GitHub
+    const filesResponse = await fetch('/files/count');
+    const filesStats = await filesResponse.json();
+    document.getElementById('fileCount').textContent = `${filesStats.count} Files`;
+  } catch (error) {
+    console.error('Error updating stats:', error);
+  }
+}
+
+// Update stats every second
+setInterval(updateStats, 1000);
+// Initial update
+updateStats();
+  </script>
 </body>
 </html>
