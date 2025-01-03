@@ -92,7 +92,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     // Hapus file dari penyimpanan sementara
     fs.unlinkSync(file.path);
 
-    const baseUrl = "https://uploadfile.notmebot.us.kg";
+    const baseUrl = "https://cdn.notmebot.us.kg";
     const fileUrl = `${baseUrl}/file/${fileName}`;
 
     // Kirim response dengan URL file
