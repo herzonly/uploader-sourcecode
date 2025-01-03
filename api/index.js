@@ -20,7 +20,7 @@ const upload = multer({ dest: "uploads/" });
 
 // Endpoint untuk menampilkan halaman utama
 app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
+  res.sendFile(path.join(__dirname, "..", "index.html"));
 });
 
 // Endpoint untuk mengunggah file
