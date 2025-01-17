@@ -87,7 +87,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      error: "Terjadi kesalahan saat mengunggah file."
+      error: "Terjadi kesalahan saat mengunggah file.:\n\n" + error
     });
   }
 });
