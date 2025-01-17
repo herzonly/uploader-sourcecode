@@ -5,7 +5,6 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const os = require('os');
-
 const app = express();
 const PORT = 3000;
 
@@ -16,6 +15,15 @@ const branch = "main";
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
+
+function generateFileName(buffer, ext = '') {
+  const hash = crypto.createHash('sha256')
+    .update(buffer)
+    .update(Date.now().toString())
+    .digest('hex')
+    .slice(0, 10);
+  return `${hash}${ext}`;
+}
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "..", "index.html"));
@@ -29,16 +37,10 @@ app.get("/files/count", async (req, res) => {
       path: "files",
       ref: branch
     });
-
     const fileCount = Array.isArray(response.data) ? response.data.length : 0;
-
-    res.json({
-      count: fileCount
-    });
+    res.json({ count: fileCount });
   } catch (error) {
-    res.status(500).json({
-      error: "Gagal mendapatkan jumlah file"
-    });
+    res.status(500).json({ error: "Gagal mendapatkan jumlah file" });
   }
 });
 
@@ -50,11 +52,11 @@ app.get("/stats", (req, res) => {
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
   const seconds = uptimeSeconds % 60;
   const uptimeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
+  
   const totalMemory = Math.round(os.totalmem() / (1024 * 1024 * 1024));
   const freeMemory = Math.round(os.freemem() / (1024 * 1024 * 1024));
   const usedMemory = totalMemory - freeMemory;
-
+  
   res.json({
     uptime: uptimeString,
     memoryUsed: usedMemory,
@@ -64,9 +66,15 @@ app.get("/stats", (req, res) => {
 
 app.post("/upload", upload.single("file"), async (req, res) => {
   try {
-    const ext = path.extname(req.file.originalname);
-    const hash = crypto.createHash("md5").update(req.file.originalname + Date.now()).digest("hex").slice(0, 5);
-    const fileName = `${hash}${ext}`;
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({
+        success: false,
+        error: "Tidak ada file yang diunggah"
+      });
+    }
+
+    const ext = path.extname(req.file.originalname || '');
+    const fileName = generateFileName(req.file.buffer, ext);
 
     await octokit.repos.createOrUpdateFileContents({
       owner,
