@@ -5,6 +5,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const os = require('os');
+const { fromBuffer } = require('file-type');
 const app = express();
 const PORT = 3000;
 
@@ -23,6 +24,13 @@ function generateFileName(buffer, ext = '') {
     .digest('hex')
     .slice(0, 10);
   return `${hash}${ext}`;
+}
+
+function getClientIP(req) {
+  return req.headers['x-forwarded-for'] || 
+         req.connection.remoteAddress || 
+         req.socket.remoteAddress ||
+         req.connection.socket?.remoteAddress;
 }
 
 app.get("/", (req, res) => {
@@ -52,11 +60,11 @@ app.get("/stats", (req, res) => {
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
   const seconds = uptimeSeconds % 60;
   const uptimeString = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-  
+
   const totalMemory = Math.round(os.totalmem() / (1024 * 1024 * 1024));
   const freeMemory = Math.round(os.freemem() / (1024 * 1024 * 1024));
   const usedMemory = totalMemory - freeMemory;
-  
+
   res.json({
     uptime: uptimeString,
     memoryUsed: usedMemory,
@@ -65,23 +73,35 @@ app.get("/stats", (req, res) => {
 });
 
 app.post("/upload", upload.single("file"), async (req, res) => {
+  const clientIP = getClientIP(req);
+  console.log(`IP [${clientIP}] want to upload a file`);
+
   try {
-    if (!req.file || !req.file.buffer) {
+    let fileBuffer;
+    let originalExt = '';
+
+    if (req.file) {
+      fileBuffer = req.file.buffer;
+      originalExt = path.extname(req.file.originalname || '');
+    } else if (req.body.buffer) {
+      fileBuffer = Buffer.from(req.body.buffer);
+      const fileType = await fromBuffer(fileBuffer);
+      originalExt = '.' + fileType.ext;
+    } else {
       return res.status(400).json({
         success: false,
         error: "Tidak ada file yang diunggah"
       });
     }
 
-    const ext = path.extname(req.file.originalname || '');
-    const fileName = generateFileName(req.file.buffer, ext);
+    const fileName = generateFileName(fileBuffer, originalExt);
 
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
       path: `files/${fileName}`,
       message: `Upload file: ${fileName}`,
-      content: req.file.buffer.toString("base64"),
+      content: fileBuffer.toString("base64"),
       branch,
     });
 
