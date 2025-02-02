@@ -6,34 +6,22 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { fromBuffer } = require("file-type");
-const app = express();
-const PORT = 3000;
 
+const app = express();
 const octokit = new Octokit({ auth: "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" });
 const owner = "Yunheel";
 const repo = "database";
 const branch = "main";
 
 const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+const upload = multer({ storage });
 
 function generateFileName(buffer, ext = "") {
-  const hash = crypto
-    .createHash("sha256")
-    .update(buffer)
-    .update(Date.now().toString())
-    .digest("hex")
-    .slice(0, 10);
-  return `${hash}${ext}`;
+  return crypto.createHash("sha256").update(buffer).update(Date.now().toString()).digest("hex").slice(0, 10) + ext;
 }
 
 function getClientIP(req) {
-  return (
-    req.headers["x-forwarded-for"] ||
-    req.connection.remoteAddress ||
-    req.socket.remoteAddress ||
-    req.connection.socket?.remoteAddress
-  );
+  return req.headers["x-forwarded-for"] || req.connection.remoteAddress || req.socket.remoteAddress || req.connection.socket?.remoteAddress;
 }
 
 app.get("/", (req, res) => {
@@ -42,14 +30,8 @@ app.get("/", (req, res) => {
 
 app.get("/files/count", async (req, res) => {
   try {
-    const response = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: "files",
-      ref: branch,
-    });
-    const fileCount = Array.isArray(response.data) ? response.data.length : 0;
-    res.json({ count: fileCount });
+    const response = await octokit.repos.getContent({ owner, repo, path: "files", ref: branch });
+    res.json({ count: Array.isArray(response.data) ? response.data.length : 0 });
   } catch (error) {
     res.status(500).json({ error: "Gagal mendapatkan jumlah file" });
   }
@@ -62,27 +44,19 @@ app.get("/stats", (req, res) => {
   const hours = Math.floor(uptimeSeconds / 3600);
   const minutes = Math.floor((uptimeSeconds % 3600) / 60);
   const seconds = uptimeSeconds % 60;
-  const uptimeString = `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
-
-  const totalMemory = Math.round(os.totalmem() / (1024 * 1024 * 1024));
-  const freeMemory = Math.round(os.freemem() / (1024 * 1024 * 1024));
-  const usedMemory = totalMemory - freeMemory;
-
   res.json({
-    uptime: uptimeString,
-    memoryUsed: usedMemory,
-    memoryTotal: totalMemory,
+    uptime: `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`,
+    memoryUsed: Math.round(os.totalmem() / (1024 * 1024 * 1024)) - Math.round(os.freemem() / (1024 * 1024 * 1024)),
+    memoryTotal: Math.round(os.totalmem() / (1024 * 1024 * 1024)),
   });
 });
 
 app.post("/upload", upload.single("file"), async (req, res) => {
-  const clientIP = getClientIP(req);
-  console.log(`IP [${clientIP}] want to upload a file`);
-
   try {
-    let fileBuffer;
-    let originalExt = "";
+    const clientIP = getClientIP(req);
+    console.log(`IP [${clientIP}] ingin mengunggah file`);
 
+    let fileBuffer, originalExt = "";
     if (req.file) {
       fileBuffer = req.file.buffer;
       originalExt = path.extname(req.file.originalname || "");
@@ -91,14 +65,10 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       const fileType = await fromBuffer(fileBuffer);
       originalExt = "." + fileType.ext;
     } else {
-      return res.status(400).json({
-        success: false,
-        error: "Tidak ada file yang diunggah",
-      });
+      return res.status(400).json({ success: false, error: "Tidak ada file yang diunggah" });
     }
 
     const fileName = generateFileName(fileBuffer, originalExt);
-
     await octokit.repos.createOrUpdateFileContents({
       owner,
       repo,
@@ -108,47 +78,25 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       branch,
     });
 
-    const baseUrl = "https://cdn.notmebot.us.kg";
-    const fileUrl = `${baseUrl}/file/${fileName}`;
-
-    res.json({
-      success: true,
-      url: fileUrl,
-    });
+    res.json({ success: true, url: `https://cdn.notmebot.us.kg/file/${fileName}` });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      error: "Terjadi kesalahan saat mengunggah file.:\n\n" + error,
-    });
+    res.status(500).json({ success: false, error: "Terjadi kesalahan saat mengunggah file.:\n\n" + error });
   }
 });
 
 app.get("/file/:filename", async (req, res) => {
   try {
     const { filename } = req.params;
-    const files = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: "files",
-      ref: branch,
-    });
-
+    const files = await octokit.repos.getContent({ owner, repo, path: "files", ref: branch });
     const file = files.data.find((f) => f.name === filename);
     if (!file) return res.status(404).send("File tidak ditemukan.");
 
-    const fileData = await octokit.repos.getContent({
-      owner,
-      repo,
-      path: file.path,
-      ref: branch,
-    });
-
-    const content = Buffer.from(fileData.data.content, "base64");
+    const fileData = await octokit.repos.getContent({ owner, repo, path: file.path, ref: branch });
     res.setHeader("Content-Disposition", `attachment; filename="${file.name}"`);
-    res.send(content);
+    res.send(Buffer.from(fileData.data.content, "base64"));
   } catch (error) {
     res.status(500).send("Terjadi kesalahan saat mengakses file.");
   }
 });
 
-app.listen(PORT, () => console.log(`Server berjalan di http://localhost:${PORT}`));
+module.exports = app;
