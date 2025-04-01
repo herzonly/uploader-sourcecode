@@ -78,7 +78,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       branch,
     });
 
-    res.json({ success: true, url: `https://cdn.notmebot.us.kg/file/${fileName}` });
+    res.json({ success: true, url: `https://cdnme.ejs.biz.id/file/${fileName}` });
   } catch (error) {
     res.status(500).json({ success: false, error: "Terjadi kesalahan saat mengunggah file.:\n\n" + error });
   }
