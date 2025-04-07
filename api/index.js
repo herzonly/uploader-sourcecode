@@ -8,10 +8,11 @@ const os = require("os");
 const { fromBuffer } = require("file-type");
 
 const app = express();
-const octokit = new Octokit({ auth: "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" });
-const owner = "Yunheel";
-const repo = "database";
+const octokit = new Octokit({ auth: "GITHUB ACCESS TOKEN CLASSIC" });
+const owner = "YOURE GITHUB USERNAME";
+const repo = "GITHUB REPO";
 const branch = "main";
+const BASEURL = " YOUR CDN URL "
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
@@ -78,7 +79,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       branch,
     });
 
-    res.json({ success: true, url: `https://cdnme.ejs.biz.id/file/${fileName}` });
+    res.json({ success: true, url: `${BASEURL}/file/${fileName}` });
   } catch (error) {
     res.status(500).json({ success: false, error: "Terjadi kesalahan saat mengunggah file.:\n\n" + error });
   }
